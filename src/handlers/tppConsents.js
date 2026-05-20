@@ -26,7 +26,6 @@
 
  --------------
  ******/
-
 'use strict'
 
 const EventSdk = require('@mojaloop/event-sdk')
@@ -34,40 +33,40 @@ const Enum = require('@mojaloop/central-services-shared').Enum
 const ErrorHandler = require('@mojaloop/central-services-error-handling')
 const Logger = require('@mojaloop/central-services-logger')
 const Metrics = require('@mojaloop/central-services-metrics')
-const tppConsentRequests = require('../../../domain/tppConsentRequests')
-const LibUtil = require('../../../lib/util')
+const tppConsents = require('../domain/tppConsents')
+const LibUtil = require('../lib/util')
 
 /**
- * Operations on /tppConsentRequests/{ID}/error
+ * Operations on /tppConsents
  */
 module.exports = {
   /**
-   * summary: ConsentRequestError
-   * description: If the DFSP is unable to process the consent request, or another processing error occurs, the error callback PUT /tppConsentRequests/{ID}/error is used.
-   * parameters: body, content-length
+   * summary: PostConsents
+   * description: The POST /tppConsents resource is used by a DFSP to create a consent following account owner approval.
+   * parameters: body, accept, content-length, content-type, date, x-forwarded-for, fspiop-source, fspiop-destination, fspiop-encryption, fspiop-signature, fspiop-uri, fspiop-http-method
    * produces: application/json
-   * responses: 200, 400, 401, 403, 404, 405, 406, 501, 503
+   * responses: 202, 400, 401, 403, 404, 405, 406, 501, 503
    */
-  put: async (context, request, h) => {
+  post: async (context, request, h) => {
     const histTimerEnd = Metrics.getHistogram(
-      'tpp_consent_requests_error_put',
-      'Put tpp consent request error by Id',
+      'tpp_consents_post',
+      'Post tpp consents request',
       ['success']
     ).startTimer()
     const span = request.span
     try {
-      const tags = LibUtil.getSpanTags(request, Enum.Events.Event.Type.THIRDPARTY, Enum.Events.Event.Action.PUT)
+      const tags = LibUtil.getSpanTags(request, Enum.Events.Event.Type.THIRDPARTY, Enum.Events.Event.Action.POST)
       span.setTags(tags)
       await span.audit({
         headers: request.headers,
         payload: request.payload
       }, EventSdk.AuditEventAction.start)
-      tppConsentRequests.forwardTppConsentRequestsError(Enum.EndPoints.FspEndpointTemplates.TPP_CONSENT_REQUEST_PUT_ERROR, request.headers, Enum.Http.RestMethods.PUT, request.params, request.payload, span).catch(err => {
-        // Do nothing with the error - forwardTppConsentRequests takes care of async errors
-        request.server.log(['error'], `ERROR - forwardTppConsentRequests: ${LibUtil.getStackOrInspect(err)}`)
+      tppConsents.forwardTppConsents(Enum.EndPoints.FspEndpointTypes.TPP_CB_URL_CONSENTS_POST, request.headers, Enum.Http.RestMethods.POST, request.params, request.payload, span).catch(err => {
+        // Do nothing with the error - forwardTppConsents takes care of async errors
+        request.server.log(['error'], `ERROR - forwardTppConsents: ${LibUtil.getStackOrInspect(err)}`)
       })
       histTimerEnd({ success: true })
-      return h.response().code(Enum.Http.ReturnCodes.OK.CODE)
+      return h.response().code(Enum.Http.ReturnCodes.ACCEPTED.CODE)
     } catch (err) {
       const fspiopError = ErrorHandler.Factory.reformatFSPIOPError(err)
       Logger.error(fspiopError)
